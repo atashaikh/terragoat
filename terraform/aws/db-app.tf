@@ -21,6 +21,7 @@ resource "aws_db_instance" "default" {
   publicly_accessible     = true
 
   
+  
   tags = merge({
     Name        = "${local.resource_prefix.value}-rds"
     Environment = local.resource_prefix.value
