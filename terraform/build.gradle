@@ -1,0 +1,225 @@
+buildscript {
+
+    ext {
+        springBootWithoutReleaseVersion = '2.4.5'
+        dockerPluginVersion = '1.2'
+        gradleDownloadTaskVersion = '4.1.2'
+        buildInfoExtractVersion = '4.31.9'
+        sonarQubeVersion = '4.0.0.2929'
+        owaspDependencyVersion = '8.2.1'
+        
+        gradleAptVersion = '0.21'
+        localMaven = project.hasProperty('local') || System.env['ECP_USE_MAVEN_LOCAL'] != null
+        antVersion = "1.10.1"
+        axeExpertVersionForFirefox = "4.4.2"
+        groovyVersion = "2.4.11"
+        nginxVersion = "1.18.0"
+        jdkVersion = "1.8.0_362"
+        installBuilderVersion = "21.12.0"
+        sqldllVersion = "9.2"
+        snakeyamlVersion = "1.33"
+        spotBugsVersion = '4.8.0'
+        crawfordBuildVersion = "7770"
+    }
+
+    repositories {
+        if (localMaven) {
+            mavenLocal()
+        }
+        maven {
+            url "${artifactory2_contextUrl}/libs-release"
+            credentials {
+                username = "${artifactory2_user}"
+                password = "${artifactory2_password}"
+            }
+        }
+
+        maven {
+            url "https://plugins.gradle.org/m2/"
+        }
+
+        mavenCentral()
+    }
+    dependencies {
+        classpath "de.undercouch:gradle-download-task:${gradleDownloadTaskVersion}"
+        classpath("org.springframework.boot:spring-boot-gradle-plugin:${springBootWithoutReleaseVersion}")
+        classpath("se.transmode.gradle:gradle-docker:${dockerPluginVersion}")
+        classpath("org.jfrog.buildinfo:build-info-extractor-gradle:${buildInfoExtractVersion}")
+        classpath("org.sonarsource.scanner.gradle:sonarqube-gradle-plugin:${sonarQubeVersion}")
+        classpath("net.ltgt.gradle:gradle-apt-plugin:${gradleAptVersion}")
+        classpath("org.owasp:dependency-check-gradle:${owaspDependencyVersion}")
+        classpath "com.github.spotbugs.snom:spotbugs-gradle-plugin:${spotBugsVersion}"
+    }
+}
+
+allprojects {
+    task downloadDependencies() {
+        description 'Download all dependencies to the Gradle cache'
+        doLast {
+            configurations.findAll { it.canBeResolved }.files
+        }
+    }
+}
+
+subprojects {
+
+    ext {
+        springCloudVersion = 'Hoxton.SR10'
+
+        apacheCommonsEmailVersion = '1.5'
+        apacheCommonsExecVersion = '1.3'
+        bouncyCastleVersion = '1.69'
+        commonsCliVersion = '1.5.0'
+        findSecurityBugsVersion = '1.11.0'
+        guavaVersion = '31.1-jre'
+        hibernateValidatorVersion = '8.0.0.Final'
+        mysqlConnectVersion = '8.0.33'
+        jacksonVersion = '2.15.0'
+        jacksonDatabindVersion = '2.15.0'
+        jasyptVersion = '1.9.3'
+        junitVersion = '4.13.2'
+        jupiterVersion = '5.9.3'
+        lombokVersion = '1.18.26'
+        moxyVersion = '2.7.1'
+        rabbitAmpqClientVersion = '5.17.0'
+        sqlServerJdbcVersion = '12.2.0.jre8'
+        tomcatExtLogVersion = '1.6'
+        javaDiffUtilsVersion = '4.5'
+
+        pushDocker = System.getProperty("PUSH_DOCKER") == "true" ? true : false
+        dockerRepoLocation = "agora.dequecloud.com:1083"
+        isRelease = "$System.env.RELEASE_BUILD" == 'true' ? true : false
+        downloadRepository = isRelease ? 'libs-release' : 'libs-snapshot'
+        publishRepository = isRelease ? 'gradle-release-repository' : 'gradle-repository'
+    }
+
+    def build = System.env['BUILD_NUMBER'] == null ? "dev" : "$System.env.BUILD_NUMBER"
+
+    group = 'com.deque.installer'
+
+    version = "${dockerInstallerVersion}"
+
+    apply plugin: 'java'
+    apply plugin: 'eclipse'
+    apply plugin: 'maven'
+    apply plugin: "com.github.spotbugs"
+    apply plugin: 'pmd'
+    apply plugin: 'checkstyle'
+    apply plugin: 'jacoco'
+    apply plugin: 'org.springframework.boot'
+    apply plugin: 'docker'
+    apply plugin: "com.jfrog.artifactory"
+    apply plugin: "de.undercouch.download"
+    apply plugin: 'org.sonarqube'
+    apply plugin: "org.owasp.dependencycheck"
+
+
+    eclipse {
+        classpath {
+            downloadSources = true
+            containers.remove('org.eclipse.jdt.launching.JRE_CONTAINER')
+            containers 'org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.8'
+        }
+    }
+
+
+    sourceCompatibility = 1.8
+    targetCompatibility = 1.8
+
+    repositories {
+        if (project.hasProperty('local') || System.env['ECP_USE_MAVEN_LOCAL'] != null) {
+            mavenLocal()
+        }
+        maven {
+            url "${artifactory2_contextUrl}/${downloadRepository}"
+            credentials {
+                username = "${artifactory2_user}"
+                password = "${artifactory2_password}"
+            }
+        }
+    }
+
+    dependencies {
+        implementation platform("org.springframework.boot:spring-boot-dependencies:${springBootWithoutReleaseVersion}")
+
+        implementation("com.google.guava:guava:${guavaVersion}")
+        implementation("com.microsoft.sqlserver:mssql-jdbc:${sqlServerJdbcVersion}")
+        implementation("com.rabbitmq:amqp-client:${rabbitAmpqClientVersion}")
+        implementation("commons-cli:commons-cli:${commonsCliVersion}")
+        implementation("mysql:mysql-connector-java:${mysqlConnectVersion}")
+        implementation("org.apache.commons:commons-email:${apacheCommonsEmailVersion}")
+        implementation("org.apache.commons:commons-exec:${apacheCommonsExecVersion}")
+        implementation("org.hibernate:hibernate-validator:${hibernateValidatorVersion}")
+
+        //Security Updates
+        implementation("com.fasterxml.jackson.core:jackson-databind:${jacksonDatabindVersion}") {
+            force = true
+        }
+        //Security Updates
+        implementation("com.fasterxml.jackson.core:jackson-annotations:${jacksonVersion}") {
+            force = true
+        }
+        //Security Updates
+        implementation("com.fasterxml.jackson.core:jackson-core:${jacksonVersion}") {
+            force = true
+        }
+
+        annotationProcessor("org.projectlombok:lombok:${lombokVersion}")
+        compileOnly("org.projectlombok:lombok:${lombokVersion}")
+        testImplementation("org.junit.jupiter:junit-jupiter:${jupiterVersion}")
+        testRuntimeOnly("org.junit.vintage:junit-vintage-engine:${jupiterVersion}")
+        testImplementation "junit:junit:${junitVersion}"
+        testAnnotationProcessor("org.projectlombok:lombok:${lombokVersion}")
+        testCompileOnly("org.projectlombok:lombok:${lombokVersion}")
+        implementation("org.jasypt:jasypt:${jasyptVersion}")
+
+    }
+
+    jar.doFirst {
+        manifest.attributes(
+                "Provider": "Deque Systems Inc.",
+                "Build-Info": build,
+                "Implementation-Title": project.name,
+                "Implementation-Version": version
+        )
+    }
+
+    def codeAnalysisConfigDir = rootProject.file("config")
+
+    pmd {
+        // TODO: Renable PMD when we bump gradle versions
+        ignoreFailures = true
+    }
+
+
+    checkstyle {
+        toolVersion = "8.9"
+        configFile = new File(codeAnalysisConfigDir, "checkstyle/checkstyle.xml")
+        configProperties = [
+                'checkstyle.cache.file': "${buildDir}/checkstyle.cache",
+        ]
+        maxWarnings = 0
+        ignoreFailures = false
+        showViolations = true
+    }
+
+    test {
+        jacoco {
+            destinationFile = file("$buildDir/jacoco/jacocoTest.exec")
+            classDumpDir = file("$buildDir/jacoco/classpathdumps")
+        }
+        useJUnitPlatform()
+    }
+
+    test.maxParallelForks = 4
+
+    jacocoTestReport {
+        reports {
+            xml.enabled true
+            csv.enabled false
+            html.destination file("${buildDir}/jacocoHtml")
+        }
+    }
+
+    task wrapper(type: Wrapper) { gradleVersion = '6.7' }
+}
