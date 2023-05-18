@@ -24,6 +24,7 @@ jobs:
         with:
           api-key: ${{ secrets.BC_API_KEY }}
           soft_fail: true
+          branch: terragoat/terraform/aws
       
       
       - name: Upload SARIF file
