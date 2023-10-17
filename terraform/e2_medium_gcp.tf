@@ -19,4 +19,7 @@ resource "google_compute_instance" "example_instance" {
   }
 
   tags = ["example-tag"]
+  metadata = {
+    block-project-ssh-keys = true
+  }
 }
